@@ -1,0 +1,46 @@
+# =========================
+# Python
+# =========================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+.env
+
+# =========================
+# Frontend (Vite / Node)
+# =========================
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# =========================
+# Backend runtime folders
+# =========================
+uploads/
+outputs/
+
+# =========================
+# Large ML / model files
+# =========================
+*.weights
+*.pt
+*.pth
+*.onnx
+*.pkl
+*.db
+
+# =========================
+# OS / editor
+# =========================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# =========================
+# Logs
+# =========================
+*.log

@@ -15,6 +15,7 @@ venv/
 frontend/node_modules/
 frontend/dist/
 frontend/.vite/
+frontend/public/
 
 # =========================
 # Backend runtime folders
@@ -29,8 +30,8 @@ outputs/
 *.pt
 *.pth
 *.onnx
-*.pkl
 *.db
+*.pkl
 
 # =========================
 # OS / editor

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import { create } from "zustand";
 
 /* ======================================================
@@ -67,6 +67,64 @@ table tbody tr:hover {
   cursor: pointer;
 }
 `;
+
+
+
+function Sidebar() {
+  const [collapsed, setCollapsed] = useState(false);
+
+  return (
+    <aside
+      style={{
+        ...sidebarStyles.sidebar,
+        width: collapsed ? 64 : 240,
+        minWidth: collapsed ? 64 : 240,
+      }}
+    >
+      <div style={sidebarStyles.topRow}>
+        {!collapsed && (
+          <div style={sidebarStyles.logo}>Video Analytics</div>
+        )}
+
+        <button
+          onClick={() => setCollapsed((v) => !v)}
+          style={sidebarStyles.toggleBtn}
+          title="Toggle sidebar"
+        >
+          ☰
+        </button>
+      </div>
+
+      <nav style={sidebarStyles.nav}>
+        <NavLink
+          to="/"
+          end
+          style={({ isActive }) => ({
+            ...sidebarStyles.link,
+            ...(isActive ? sidebarStyles.active : {}),
+            justifyContent: collapsed ? "center" : "flex-start",
+          })}
+        >
+          <span style={sidebarStyles.icon}>🏠</span>
+          {!collapsed && <span>Dashboard</span>}
+        </NavLink>
+
+        <NavLink
+          to="/audit"
+          style={({ isActive }) => ({
+            ...sidebarStyles.link,
+            ...(isActive ? sidebarStyles.active : {}),
+            justifyContent: collapsed ? "center" : "flex-start",
+          })}
+        >
+          <span style={sidebarStyles.icon}>📄</span>
+          {!collapsed && <span>Audit logs</span>}
+        </NavLink>
+      </nav>
+    </aside>
+  );
+}
+
 
 export default function App() {
   const uploadingRef = useRef(false);
@@ -219,56 +277,192 @@ export default function App() {
   }
 
   function PeopleGraph({ data }) {
-    if (!data || data.length < 2) {
-      return <div style={{ color: "#666" }}>Not enough data</div>;
-    }
+  const containerRef = useRef(null);
+  const [width, setWidth] = useState(800);
 
-    const width = 900;
-    const height = 260;
-    const padding = 40;
+  useEffect(() => {
+    if (!containerRef.current) return;
 
-    const maxX = data[data.length - 1].t;
-    const maxY = Math.max(...data.map((d) => d.count));
+    const obs = new ResizeObserver((entries) => {
+      const w = entries[0].contentRect.width;
+      setWidth(w);
+    });
 
-    const scaleX = (x) =>
-      padding + (x / maxX) * (width - padding * 2);
+    obs.observe(containerRef.current);
 
-    const scaleY = (y) =>
-      height - padding - (y / maxY) * (height - padding * 2);
+    return () => obs.disconnect();
+  }, []);
 
-    const path = data
-      .map((d, i) => {
-        const x = scaleX(d.t);
-        const y = scaleY(d.count);
-        return `${i === 0 ? "M" : "L"} ${x} ${y}`;
-      })
-      .join(" ");
-
+  if (!data || data.length < 2) {
     return (
+      <div style={{ color: "#666", padding: 20 }}>
+        Not enough data
+      </div>
+    );
+  }
+
+  const height = 300;
+  const padding = { top: 20, right: 20, bottom: 40, left: 50 };
+
+  const maxX = data[data.length - 1].t;
+  const maxY = Math.max(...data.map((d) => d.count), 1);
+
+  const scaleX = (x) =>
+    padding.left +
+    (x / maxX) * (width - padding.left - padding.right);
+
+  const scaleY = (y) =>
+    height -
+    padding.bottom -
+    (y / maxY) * (height - padding.top - padding.bottom);
+
+  const path = data
+    .map((d, i) => {
+      const x = scaleX(d.t);
+      const y = scaleY(d.count);
+      return `${i === 0 ? "M" : "L"} ${x} ${y}`;
+    })
+    .join(" ");
+
+  const yTicks = 4;
+  const xTicks = 5;
+
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        width: "100%",
+        background: "#ffffff",
+        border: "1px solid #e5e7eb",
+        borderRadius: 12,
+        padding: 12,
+      }}
+    >
       <svg width={width} height={height}>
+        {/* Grid – Y */}
+        {Array.from({ length: yTicks + 1 }).map((_, i) => {
+          const v = (maxY / yTicks) * i;
+          const y = scaleY(v);
+
+          return (
+            <g key={`y-${i}`}>
+              <line
+                x1={padding.left}
+                x2={width - padding.right}
+                y1={y}
+                y2={y}
+                stroke="#e5e7eb"
+                strokeDasharray="3 3"
+              />
+              <text
+                x={padding.left - 8}
+                y={y + 4}
+                textAnchor="end"
+                fontSize="11"
+                fill="#6b7280"
+              >
+                {Math.round(v)}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Grid – X */}
+        {Array.from({ length: xTicks + 1 }).map((_, i) => {
+          const v = (maxX / xTicks) * i;
+          const x = scaleX(v);
+
+          return (
+            <g key={`x-${i}`}>
+              <line
+                x1={x}
+                x2={x}
+                y1={padding.top}
+                y2={height - padding.bottom}
+                stroke="#e5e7eb"
+                strokeDasharray="3 3"
+              />
+              <text
+                x={x}
+                y={height - padding.bottom + 16}
+                textAnchor="middle"
+                fontSize="11"
+                fill="#6b7280"
+              >
+                {Math.round(v)}s
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Axes */}
         <line
-          x1={padding}
-          y1={padding}
-          x2={padding}
-          y2={height - padding}
-          stroke="#000"
+          x1={padding.left}
+          y1={padding.top}
+          x2={padding.left}
+          y2={height - padding.bottom}
+          stroke="#111827"
         />
+
         <line
-          x1={padding}
-          y1={height - padding}
-          x2={width - padding}
-          y2={height - padding}
-          stroke="#000"
+          x1={padding.left}
+          y1={height - padding.bottom}
+          x2={width - padding.right}
+          y2={height - padding.bottom}
+          stroke="#111827"
         />
+
+        {/* Line */}
         <path
           d={path}
           fill="none"
           stroke="#2563eb"
-          strokeWidth="2"
+          strokeWidth="2.5"
         />
+
+        {/* Points */}
+        {data.map((d, i) => {
+          const x = scaleX(d.t);
+          const y = scaleY(d.count);
+
+          return (
+            <circle
+              key={i}
+              cx={x}
+              cy={y}
+              r={3.5}
+              fill="#2563eb"
+            />
+          );
+        })}
+
+        {/* Y axis label */}
+        <text
+          x={-height / 2}
+          y={14}
+          transform="rotate(-90)"
+          textAnchor="middle"
+          fontSize="12"
+          fill="#374151"
+        >
+          Total people
+        </text>
+
+        {/* X axis label */}
+        <text
+          x={(padding.left + width - padding.right) / 2}
+          y={height - 4}
+          textAnchor="middle"
+          fontSize="12"
+          fill="#374151"
+        >
+          Time (seconds)
+        </text>
       </svg>
-    );
-  }
+    </div>
+  );
+}
+
 
   /* -----------------------
      ROI drawing helpers
@@ -418,202 +612,250 @@ export default function App() {
   ----------------------- */
 
   return (
-    <div style={styles.app}>
-      <style>{globalTableStyles}</style>
+    <div style={{ display: "flex", minHeight: "100vh" }}>
+      <Sidebar />
 
-      <div style={styles.header}>
-        <h2 style={{ margin: 0 }}>Video Analytics Dashboard</h2>
+      <div style={{ flex: 1 }}>
+        <div style={styles.app}>
+          <style>{globalTableStyles}</style>
 
-        <input
-          type="file"
-          accept="video/*"
-          onChange={handleUpload}
-          disabled={uploading}
-        />
+          <div style={styles.header}>
+            <h2 style={{ margin: 0 }}>
+              Video Analytics Dashboard
+            </h2>
 
-        <Link to="/audit">Audit logs</Link>
-      </div>
+            <input
+              type="file"
+              accept="video/*"
+              onChange={handleUpload}
+              disabled={uploading}
+            />
+          </div>
 
-      <div style={styles.main}>
-        <div style={styles.videoPanel}>
-          {!job && (
-            <div style={styles.placeholder}>
-              Upload a video to start processing
-            </div>
-          )}
-
-          {job && job.status === "processing" && (
-            <div style={styles.placeholder}>Processing video…</div>
-          )}
-
-          {job && job.status === "done" && (
-            <div style={styles.videoBlock}>
-              <div style={styles.videoWrapper}>
-                <div style={styles.stack}>
-                  <video
-                    ref={videoRef}
-                    src={`http://localhost:8000/video/${job.job_id}`}
-                    controls={!drawingROI}
-                    style={{
-                      ...styles.video,
-                      pointerEvents: drawingROI ? "none" : "auto",
-                    }}
-                    onLoadedMetadata={syncCanvasSize}
-                  />
-
-                  {showHeatmap && (
-                    <img
-                      src={`http://localhost:8000/heatmap/${job.job_id}`}
-                      alt="Heatmap"
-                      style={styles.heatmapOverlay}
-                    />
-                  )}
-
-                  <canvas
-                    ref={canvasRef}
-                    onClick={handleCanvasClick}
-                    style={{
-                      ...styles.roiCanvas,
-                      pointerEvents: drawingROI ? "auto" : "none",
-                      cursor: drawingROI ? "crosshair" : "default",
-                    }}
-                  />
+          <div style={styles.main}>
+            <div style={styles.videoPanel}>
+              {!job && (
+                <div style={styles.placeholder}>
+                  Upload a video to start processing
                 </div>
+              )}
+
+              {job && job.status === "processing" && (
+                <div style={styles.placeholder}>
+                  Processing video…
+                </div>
+              )}
+
+              {job && job.status === "done" && (
+                <div style={styles.videoBlock}>
+                  <div style={styles.videoWrapper}>
+                    <div style={styles.stack}>
+                      <video
+                        ref={videoRef}
+                        src={`http://localhost:8000/video/${job.job_id}`}
+                        controls={!drawingROI}
+                        style={{
+                          ...styles.video,
+                          pointerEvents: drawingROI
+                            ? "none"
+                            : "auto",
+                        }}
+                        onLoadedMetadata={syncCanvasSize}
+                      />
+
+                      {showHeatmap && (
+                        <img
+                          src={`http://localhost:8000/heatmap/${job.job_id}`}
+                          alt="Heatmap"
+                          style={styles.heatmapOverlay}
+                        />
+                      )}
+
+                      <canvas
+                        ref={canvasRef}
+                        onClick={handleCanvasClick}
+                        style={{
+                          ...styles.roiCanvas,
+                          pointerEvents: drawingROI
+                            ? "auto"
+                            : "none",
+                          cursor: drawingROI
+                            ? "crosshair"
+                            : "default",
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={styles.videoControls}>
+                    <button
+                      onClick={() =>
+                        setShowHeatmap(!showHeatmap)
+                      }
+                    >
+                      {showHeatmap
+                        ? "Hide Heatmap"
+                        : "Show Heatmap"}
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setDrawingROI(true);
+                        setRoiPoints([]);
+                      }}
+                    >
+                      Draw ROI
+                    </button>
+
+                    <button
+                      disabled={roiPoints.length < 3}
+                      onClick={finishROI}
+                    >
+                      Finish ROI
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {job && job.status === "failed" && (
+                <div style={styles.placeholder}>
+                  Processing failed. Check backend logs.
+                </div>
+              )}
+            </div>
+
+            <div style={styles.tablePanel}>
+              <div style={{ marginBottom: 8 }}>
+                <label
+                  style={{ fontSize: 13, color: "#444" }}
+                >
+                  Region
+                </label>
+                <select
+                  value={selectedROI}
+                  onChange={(e) =>
+                    setSelectedROI(e.target.value)
+                  }
+                  style={{ width: "100%", marginTop: 4 }}
+                >
+                  <option value="">
+                    All regions
+                  </option>
+                  {rois.map((r) => (
+                    <option
+                      key={r.id}
+                      value={r.id}
+                    >
+                      {r.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
-              <div style={styles.videoControls}>
-                <button onClick={() => setShowHeatmap(!showHeatmap)}>
-                  {showHeatmap ? "Hide Heatmap" : "Show Heatmap"}
-                </button>
-
-                <button
-                  onClick={() => {
-                    setDrawingROI(true);
-                    setRoiPoints([]);
+              <div style={styles.analyticsBlock}>
+                <h3
+                  style={{
+                    margin: "0 0 10px 0",
+                    color: "#000",
                   }}
                 >
-                  Draw ROI
-                </button>
+                  Analytics
+                </h3>
 
-                <button
-                  disabled={roiPoints.length < 3}
-                  onClick={finishROI}
-                >
-                  Finish ROI
-                </button>
+                {!analytics && loadingAnalytics && (
+                  <div style={{ color: "#666" }}>
+                    Loading analytics…
+                  </div>
+                )}
+
+                {analytics && (
+                  <div style={styles.cardsRow}>
+                    <div style={styles.card}>
+                      <div style={styles.cardLabel}>
+                        Total people
+                      </div>
+                      <div style={styles.cardValue}>
+                        {analytics.total_people}
+                      </div>
+                    </div>
+
+                    <div style={styles.card}>
+                      <div style={styles.cardLabel}>
+                        Avg dwell time
+                      </div>
+                      <div style={styles.cardValue}>
+                        {analytics.avg_dwell_time}s
+                      </div>
+                    </div>
+
+                    <div style={styles.card}>
+                      <div style={styles.cardLabel}>
+                        Peak minute
+                      </div>
+                      <div style={styles.cardValue}>
+                        {analytics.peak_minute ?? "-"}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <h3
+                style={{
+                  textAlign: "center",
+                  color: "#000",
+                  marginTop: 10,
+                }}
+              >
+                Detections
+              </h3>
+
+              <div style={styles.tableWrapper}>
+                <table style={styles.table}>
+                  <thead>
+                    <tr>
+                      <th>Track ID</th>
+                      <th>Time (s)</th>
+                      <th>Bounding Box</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {detections.map((d, i) => (
+                      <tr key={i}>
+                        <td style={styles.mono}>
+                          {d.track_id}
+                        </td>
+                        <td>{d.timestamp}</td>
+                        <td style={styles.mono}>
+                          ({d.x1},{d.y1}) → ({d.x2},
+                          {d.y2})
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
-          )}
+          </div>
 
-          {job && job.status === "failed" && (
-            <div style={styles.placeholder}>
-              Processing failed. Check backend logs.
+          {job && job.status === "done" && (
+            <div style={styles.graphSection}>
+              <h3
+                style={{
+                  color: "#000",
+                  marginBottom: 10,
+                }}
+              >
+                Total people vs time
+              </h3>
+
+              <PeopleGraph
+                data={buildPeopleVsTime(detections)}
+              />
             </div>
           )}
-        </div>
-
-        <div style={styles.tablePanel}>
-          <div style={{ marginBottom: 8 }}>
-            <label style={{ fontSize: 13, color: "#444" }}>
-              Region
-            </label>
-            <select
-              value={selectedROI}
-              onChange={(e) => setSelectedROI(e.target.value)}
-              style={{ width: "100%", marginTop: 4 }}
-            >
-              <option value="">All regions</option>
-              {rois.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div style={styles.analyticsBlock}>
-            <h3 style={{ margin: "0 0 10px 0", color: "#000" }}>
-              Analytics
-            </h3>
-
-            {!analytics && loadingAnalytics && (
-              <div style={{ color: "#666" }}>
-                Loading analytics…
-              </div>
-            )}
-
-            {analytics && (
-              <div style={styles.cardsRow}>
-                <div style={styles.card}>
-                  <div style={styles.cardLabel}>Total people</div>
-                  <div style={styles.cardValue}>
-                    {analytics.total_people}
-                  </div>
-                </div>
-
-                <div style={styles.card}>
-                  <div style={styles.cardLabel}>Avg dwell time</div>
-                  <div style={styles.cardValue}>
-                    {analytics.avg_dwell_time}s
-                  </div>
-                </div>
-
-                <div style={styles.card}>
-                  <div style={styles.cardLabel}>Peak minute</div>
-                  <div style={styles.cardValue}>
-                    {analytics.peak_minute ?? "-"}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <h3
-            style={{
-              textAlign: "center",
-              color: "#000",
-              marginTop: 10,
-            }}
-          >
-            Detections
-          </h3>
-
-          <div style={styles.tableWrapper}>
-            <table style={styles.table}>
-              <thead>
-                <tr>
-                  <th>Track ID</th>
-                  <th>Time (s)</th>
-                  <th>Bounding Box</th>
-                </tr>
-              </thead>
-              <tbody>
-                {detections.map((d, i) => (
-                  <tr key={i}>
-                    <td style={styles.mono}>{d.track_id}</td>
-                    <td>{d.timestamp}</td>
-                    <td style={styles.mono}>
-                      ({d.x1},{d.y1}) → ({d.x2},{d.y2})
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
         </div>
       </div>
-
-      {job && job.status === "done" && (
-        <div style={styles.graphSection}>
-          <h3 style={{ color: "#000", marginBottom: 10 }}>
-            Total people vs time
-          </h3>
-
-          <PeopleGraph
-            data={buildPeopleVsTime(detections)}
-          />
-        </div>
-      )}
     </div>
   );
 }
@@ -624,7 +866,7 @@ export default function App() {
 
 const styles = {
   app: {
-    width: "100vw",
+    width: "100%",
     minHeight: "100vh",
     display: "flex",
     flexDirection: "column",
@@ -761,3 +1003,66 @@ const styles = {
     background: "#fff",
   },
 };
+
+const sidebarStyles = {
+  sidebar: {
+    background: "#0f172a",
+    color: "#fff",
+    padding: "10px 8px",
+    display: "flex",
+    flexDirection: "column",
+    transition: "width 0.2s ease",
+  },
+
+  topRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "6px 6px 12px 6px",
+  },
+
+  logo: {
+    fontSize: 16,
+    fontWeight: 700,
+    whiteSpace: "nowrap",
+  },
+
+  toggleBtn: {
+    background: "transparent",
+    border: "none",
+    color: "#cbd5f5",
+    cursor: "pointer",
+    fontSize: 18,
+    padding: 4,
+  },
+
+  nav: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 6,
+  },
+
+  link: {
+    textDecoration: "none",
+    color: "#cbd5f5",
+    padding: "10px 10px",
+    borderRadius: 8,
+    fontSize: 14,
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    whiteSpace: "nowrap",
+  },
+
+  icon: {
+    fontSize: 16,
+    width: 20,
+    textAlign: "center",
+  },
+
+  active: {
+    background: "#1e293b",
+    color: "#fff",
+  },
+};
+

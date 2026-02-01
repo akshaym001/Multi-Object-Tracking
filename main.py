@@ -16,6 +16,8 @@ from database import SessionLocal
 from process_video import process_video
 from models import Detection, ROI, AuditLog
 
+from sqlalchemy import func
+
 
 app = FastAPI()
 
@@ -44,9 +46,25 @@ class JobState:
 
 jobs: Dict[str, JobState] = {}
 
-from sqlalchemy import func
-from models import Detection
 
+# -------------------------------------------------
+# Audit logging helper
+# -------------------------------------------------
+
+def log_event(db, event, video_id=None, roi_id=None):
+    db.add(
+        AuditLog(
+            event=event,
+            video_id=video_id,
+            roi_id=roi_id,
+        )
+    )
+    db.commit()
+
+
+# -------------------------------------------------
+# Analytics
+# -------------------------------------------------
 
 @app.get("/analytics/{video_id}")
 def get_analytics(
@@ -118,6 +136,10 @@ def get_analytics(
         db.close()
 
 
+# -------------------------------------------------
+# Background processing
+# -------------------------------------------------
+
 def run_processing(job: JobState):
     db = SessionLocal()
 
@@ -133,12 +155,23 @@ def run_processing(job: JobState):
         job.video_id = video_id
         job.status = "done"
 
+        # ✅ audit
+        log_event(db, "video_processed", video_id=video_id)
+
     except Exception as e:
         job.status = "failed"
         job.error = str(e)
 
+        # ✅ audit
+        log_event(db, "video_processing_failed")
+
     finally:
         db.close()
+
+
+# -------------------------------------------------
+# Audit logs API
+# -------------------------------------------------
 
 @app.get("/audit-logs")
 def list_audit_logs(limit: int = 100):
@@ -165,15 +198,9 @@ def list_audit_logs(limit: int = 100):
         db.close()
 
 
-def log_event(db, event, video_id=None, roi_id=None):
-    db.add(
-        AuditLog(
-            event=event,
-            video_id=video_id,
-            roi_id=roi_id,
-        )
-    )
-    db.commit()
+# -------------------------------------------------
+# Upload
+# -------------------------------------------------
 
 @app.post("/upload")
 async def upload_video(file: UploadFile = File(...)):
@@ -193,11 +220,22 @@ async def upload_video(file: UploadFile = File(...)):
     job = JobState(job_id, video_path)
     jobs[job_id] = job
 
+    # ✅ audit
+    db = SessionLocal()
+    try:
+        log_event(db, "video_uploaded")
+    finally:
+        db.close()
+
     t = threading.Thread(target=run_processing, args=(job,), daemon=True)
     t.start()
 
     return {"job_id": job_id}
 
+
+# -------------------------------------------------
+# Job status
+# -------------------------------------------------
 
 @app.get("/jobs/{job_id}")
 def job_status(job_id: str):
@@ -212,6 +250,10 @@ def job_status(job_id: str):
         "error": job.error,
     }
 
+
+# -------------------------------------------------
+# Video and heatmap
+# -------------------------------------------------
 
 @app.get("/video/{job_id}")
 def get_video(job_id: str):
@@ -238,6 +280,10 @@ def get_heatmap(job_id: str):
         media_type="image/png",
     )
 
+
+# -------------------------------------------------
+# Detections
+# -------------------------------------------------
 
 @app.get("/detections/{video_id}")
 def get_detections(
@@ -274,6 +320,10 @@ def get_detections(
         db.close()
 
 
+# -------------------------------------------------
+# ROI
+# -------------------------------------------------
+
 @app.get("/roi/{video_id}")
 def list_rois(video_id: int):
     db = SessionLocal()
@@ -303,6 +353,14 @@ def create_roi(payload: dict):
         db.add(roi)
         db.commit()
         db.refresh(roi)
+
+        # ✅ audit
+        log_event(
+            db,
+            "roi_created",
+            video_id=payload["video_id"],
+            roi_id=roi.id,
+        )
 
         poly = np.array(payload["points"], dtype=np.int32)
 

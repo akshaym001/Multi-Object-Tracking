@@ -2,6 +2,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import init_db
+print(">>> MY MAIN.PY IS RUNNING <<<")
 
 
 from app.routes import (
@@ -30,8 +31,8 @@ def on_startup():
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
-    allow_credentials=True,
+    allow_origins=["http://localhost:5174"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -42,3 +43,13 @@ app.include_router(jobs.router)
 app.include_router(media.router)
 app.include_router(detections.router)
 app.include_router(roi.router)
+
+from fastapi.routing import APIRoute
+
+print("---- REGISTERED ROUTES ----")
+for r in app.router.routes:
+    if isinstance(r, APIRoute):
+        print(r.path, r.methods)
+print("---------------------------")
+
+

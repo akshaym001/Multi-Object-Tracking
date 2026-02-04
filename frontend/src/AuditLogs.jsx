@@ -61,7 +61,7 @@ export default function AuditLogs() {
   const [logs, setLogs] = useState([]);
 
   useEffect(() => {
-    fetch("http://localhost:8000/audit-logs")
+    fetch("http://127.0.0.1:8000/audit-logs")
       .then((r) => r.json())
       .then(setLogs);
   }, []);

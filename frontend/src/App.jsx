@@ -171,7 +171,7 @@ export default function App() {
     const form = new FormData();
     form.append("file", file);
 
-    const res = await fetch("http://localhost:8000/upload", {
+    const res = await fetch("http://127.0.0.1:8000/upload", {
       method: "POST",
       body: form,
     });
@@ -183,7 +183,7 @@ export default function App() {
 
     const interval = setInterval(async () => {
       const r = await fetch(
-        `http://localhost:8000/jobs/${data.job_id}`
+        `http://127.0.0.1:8000/jobs/${data.job_id}`
       );
       const j = await r.json();
       setJob(j);
@@ -207,8 +207,8 @@ export default function App() {
 
     const url =
       selectedROI === ""
-        ? `http://localhost:8000/detections/${job.video_id}`
-        : `http://localhost:8000/detections/${job.video_id}?roi_id=${selectedROI}`;
+        ? `http://127.0.0.1:8000/detections/${job.video_id}`
+        : `http://127.0.0.1:8000/detections/${job.video_id}?roi_id=${selectedROI}`;
 
     fetch(url)
       .then((r) => r.json())
@@ -223,8 +223,8 @@ export default function App() {
 
     const url =
       selectedROI === ""
-        ? `http://localhost:8000/analytics/${job.video_id}`
-        : `http://localhost:8000/analytics/${job.video_id}?roi_id=${selectedROI}`;
+        ? `http://127.0.0.1:8000/analytics/${job.video_id}`
+        : `http://127.0.0.1:8000/analytics/${job.video_id}?roi_id=${selectedROI}`;
 
     const fetchAnalytics = async () => {
       try {
@@ -246,7 +246,7 @@ export default function App() {
   useEffect(() => {
     if (!jobDone || !job?.video_id) return;
 
-    fetch(`http://localhost:8000/roi/${job.video_id}`)
+    fetch(`http://127.0.0.1:8000/roi/${job.video_id}`)
       .then((r) => r.json())
       .then(setRois);
   }, [jobDone, job?.video_id]);
@@ -589,7 +589,7 @@ export default function App() {
       y * scaleY,
     ]);
 
-    await fetch("http://localhost:8000/roi", {
+    await fetch("http://127.0.0.1:8000/roi", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -602,7 +602,7 @@ export default function App() {
     setDrawingROI(false);
 
     const r = await fetch(
-      `http://localhost:8000/roi/${job.video_id}`
+      `http://127.0.0.1:8000/roi/${job.video_id}`
     );
     setRois(await r.json());
   }
@@ -652,7 +652,7 @@ export default function App() {
                     <div style={styles.stack}>
                       <video
                         ref={videoRef}
-                        src={`http://localhost:8000/video/${job.job_id}`}
+                        src={`http://127.0.0.1:8000/video/${job.job_id}`}
                         controls={!drawingROI}
                         style={{
                           ...styles.video,
@@ -665,7 +665,7 @@ export default function App() {
 
                       {showHeatmap && (
                         <img
-                          src={`http://localhost:8000/heatmap/${job.job_id}`}
+                          src={`http://127.0.0.1:8000/heatmap/${job.job_id}`}
                           alt="Heatmap"
                           style={styles.heatmapOverlay}
                         />

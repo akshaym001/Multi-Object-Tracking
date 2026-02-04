@@ -17,12 +17,13 @@ router = APIRouter()
 
 jobs: Dict[str, JobState] = {}
 
-
+print("uploading video")
 @router.post("/upload")
 async def upload_video(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
+    print(file.filename)
     if not file.filename:
         raise HTTPException(status_code=400)
 
